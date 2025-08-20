@@ -11,6 +11,8 @@ import { useToast } from "@/components/ui/use-toast";
 interface FileUploadProgress {
   progress: number;
   file: File;
+  parsedText?: string;
+  isProcessing: boolean;
 }
 
 const PdfColor = {
@@ -23,8 +25,8 @@ export default function FileUpload({
   setParsedText,
   maxSize,
 }: {
-  onFileUpload: (file: File) => void;
-  setParsedText: (text: string) => void;
+  onFileUpload: (files: File[]) => void;
+  setParsedText: (fileName: string, text: string) => void;
   maxSize: number;
 }) {
   const [filesToUpload, setFilesToUpload] = useState<FileUploadProgress[]>([]);
@@ -62,31 +64,54 @@ export default function FileUpload({
       }
 
       const parsedText = await response.text();
-      setParsedText(parsedText);
+      
+      // Update the file progress with parsed text
+      setFilesToUpload((prev) => 
+        prev.map((item) => 
+          item.file === file 
+            ? { ...item, parsedText, progress: 100, isProcessing: false }
+            : item
+        )
+      );
+      
+      // Call the callback with the parsed text
+      setParsedText(file.name, parsedText);
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Upload Failed",
         description: (error as Error).message,
       });
+      
+      // Update the file progress to show error
+      setFilesToUpload((prev) => 
+        prev.map((item) => 
+          item.file === file 
+            ? { ...item, progress: 0, isProcessing: false }
+            : item
+        )
+      );
     }
   };
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
-      if (acceptedFiles.length > 1) {
-        toast({
-          variant: "destructive",
-          title: "Multiple files not allowed",
-          description: "Please upload only one PDF file.",
-        });
-        return;
+      // Add all files to the upload list
+      const newFiles = acceptedFiles.map(file => ({
+        file,
+        progress: 0,
+        isProcessing: true
+      }));
+      
+      setFilesToUpload(prev => [...prev, ...newFiles]);
+      
+      // Call the callback with all files
+      onFileUpload(acceptedFiles);
+      
+      // Process each file individually
+      for (const file of acceptedFiles) {
+        await uploadFileToApi(file);
       }
-
-      const file = acceptedFiles[0];
-      setFilesToUpload([{ file, progress: 100 }]);
-      onFileUpload(file);
-      await uploadFileToApi(file);
     },
     [onFileUpload]
   );
@@ -97,6 +122,7 @@ export default function FileUpload({
       "application/pdf": [".pdf"],
     },
     maxSize: maxSize,
+    multiple: true, // Enable multiple file selection
   });
 
   return (
@@ -124,6 +150,7 @@ export default function FileUpload({
           accept="application/pdf"
           type="file"
           className="hidden"
+          multiple
         />
       </div>
 
@@ -137,7 +164,7 @@ export default function FileUpload({
               {filesToUpload.map((fileUploadProgress) => {
                 return (
                   <div
-                    key={fileUploadProgress.file.lastModified}
+                    key={`${fileUploadProgress.file.name}-${fileUploadProgress.file.lastModified}`}
                     className="flex justify-between gap-2 rounded-xl overflow-hidden border border-indigo-100 group hover:pr-0 pr-2 bg-white/80 shadow"
                   >
                     <div className="flex items-center flex-1 p-2">
@@ -150,7 +177,7 @@ export default function FileUpload({
                             {fileUploadProgress.file.name.slice(0, 25)}
                           </p>
                           <span className="text-xs">
-                            {fileUploadProgress.progress}%
+                            {fileUploadProgress.isProcessing ? "Processing..." : `${fileUploadProgress.progress}%`}
                           </span>
                         </div>
                         <Progress
