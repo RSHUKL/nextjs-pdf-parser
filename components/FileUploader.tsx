@@ -23,11 +23,9 @@ const PdfColor = {
 export default function FileUpload({
   onFileUpload,
   setParsedText,
-  maxSize,
 }: {
   onFileUpload: (files: File[]) => void;
   setParsedText: (fileName: string, text: string) => void;
-  maxSize: number;
 }) {
   const [filesToUpload, setFilesToUpload] = useState<FileUploadProgress[]>([]);
   const { toast } = useToast();
@@ -121,7 +119,6 @@ export default function FileUpload({
     accept: {
       "application/pdf": [".pdf"],
     },
-    maxSize: maxSize,
     multiple: true, // Enable multiple file selection
   });
 
@@ -140,7 +137,7 @@ export default function FileUpload({
               <span className="font-semibold text-indigo-700">Drag and drop PDF files</span>
             </p>
             <p className="text-xs text-indigo-500">
-              Click to upload files (files should be under 8 MB)
+              Click to upload files (no size limit)
             </p>
           </div>
         </label>

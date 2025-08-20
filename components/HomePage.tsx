@@ -74,7 +74,6 @@ function HomePage() {
             <FileUpload
               onFileUpload={handleFileUpload}
               setParsedText={handleParsedText}
-              maxSize={8 * 1024 * 1024} // 8 MB
             />
           </div>
         </DialogContent>
